@@ -9,26 +9,37 @@ import time
 TOKEN = '8580639697:AAFPv5TYWiWFXFxaMYQWPN7JzCwMUMYkVIQ'
 ADMIN_ID = 7985206085
 
+SOURCE_CHANNEL = -1002182432143
+DESTINATION_GROUP = -1003664534861
+
 # Initial configuration if config.json doesn't exist
 CONFIG_FILE = 'bot_config.json'
 default_config = {
-    'source_channel': 0, # Int ID needed, or we can catch it dynamically
-    'destination_group': 0,
     'ad_text': "Sizning reklamangiz shu yerda bo'lishi mumkin!",
     'ad_interval_minutes': 5,
-    'is_ad_active': False,
-    'is_forwarding_active': True 
+    'is_ad_active': True
 }
 
 def load_config():
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            data = json.load(f)
+            # Migration for old keys
+            if 'ad_text' not in data: data['ad_text'] = default_config['ad_text']
+            if 'ad_interval_minutes' not in data: data['ad_interval_minutes'] = default_config['ad_interval_minutes']
+            if 'is_ad_active' not in data: data['is_ad_active'] = default_config['is_ad_active']
+            return data
     return default_config.copy()
 
 def save_config(config):
+    # Only save what we need
+    clean_config = {
+        'ad_text': config.get('ad_text', default_config['ad_text']),
+        'ad_interval_minutes': config.get('ad_interval_minutes', default_config['ad_interval_minutes']),
+        'is_ad_active': config.get('is_ad_active', default_config['is_ad_active'])
+    }
     with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-        json.dump(config, f, indent=4)
+        json.dump(clean_config, f, indent=4)
 
 config = load_config()
 bot = telebot.TeleBot(TOKEN)
@@ -48,11 +59,11 @@ KEYS = {
 # -----------------
 def send_advertisement():
     config = load_config() # reload to get latest
-    if not config['is_ad_active'] or not config['source_channel'] or not config['ad_text']:
+    if not config['is_ad_active'] or not config['ad_text']:
         return
 
     try:
-        bot.send_message(config['source_channel'], config['ad_text'])
+        bot.send_message(SOURCE_CHANNEL, config['ad_text'])
     except Exception as e:
         print(f"Failed to send ad to source channel: {e}")
 
@@ -75,24 +86,18 @@ def admin_panel(message):
         return
     
     markup = types.InlineKeyboardMarkup(row_width=1)
-    # Buttons for config
+    
     btn_text = types.InlineKeyboardButton("📝 Reklama matnini o'zgartirish", callback_data="admin_ad_text")
     btn_time = types.InlineKeyboardButton("⏱ Vaqtni belgilash (minut)", callback_data="admin_ad_time")
     
-    ad_status = "🟢 YOZISH YOQILGAN" if config['is_ad_active'] else "🔴 YOZISH O'CHIRILGAN"
-    btn_toggle = types.InlineKeyboardButton(f"Reklama yoqish/o'chirish: {ad_status}", callback_data="admin_toggle_ad")
+    ad_status = "🟢 YOQILGAN" if config['is_ad_active'] else "🔴 O'CHIRILGAN"
+    btn_toggle = types.InlineKeyboardButton(f"Reklamani yoqish/o'chirish: {ad_status}", callback_data="admin_toggle_ad")
 
-    fwd_status = "🟢 FORWARD YOQILGAN" if config['is_forwarding_active'] else "🔴 FORWARD O'CHIRILGAN"
-    btn_fwd_toggle = types.InlineKeyboardButton(f"Kanal forward: {fwd_status}", callback_data="admin_toggle_fwd")
+    markup.add(btn_text, btn_time, btn_toggle)
     
-    btn_channels = types.InlineKeyboardButton("⚙️ Kanal/Guruh IDlarini sozlash", callback_data="admin_setup_ids")
-
-    markup.add(btn_text, btn_time, btn_toggle, btn_fwd_toggle, btn_channels)
-    
-    text = (f"🛠 **Admin Panel**\n\n"
-            f"**Kanal:** {config['source_channel']}\n"
-            f"**Guruh:** {config['destination_group']}\n"
+    text = (f"🛠 **Panel (Faqat Reklama)**\n\n"
             f"**Reklama intervali:** {config['ad_interval_minutes']} minut\n"
+            f"**Holati:** {ad_status}\n\n"
             f"**Joriy reklama matni:**\n{config['ad_text']}")
     
     bot.send_message(message.chat.id, text, reply_markup=markup, parse_mode="Markdown")
@@ -118,16 +123,6 @@ def handle_admin_callbacks(call):
         reschedule_ad()
         bot.answer_callback_query(call.id, "Reklama holati o'zgardi!")
         admin_panel(call.message) # refresh panel
-        
-    elif call.data == "admin_toggle_fwd":
-        config['is_forwarding_active'] = not config['is_forwarding_active']
-        save_config(config)
-        bot.answer_callback_query(call.id, "Kanal forward holati o'zgardi!")
-        admin_panel(call.message) # refresh panel
-        
-    elif call.data == "admin_setup_ids":
-        user_state[chat_id] = {'step': 'admin_set_source_chan'}
-        bot.send_message(chat_id, "Avval qaysi kanaldan xabarlar olinganini yubormoqchisiz?\nMen shu kanalga admin qilingan bo'lishim shart.\n\nIltimos, o'sha kanaldagi biror postni menga Foward qiling (uzating):")
 
 
 # -----------------
@@ -135,35 +130,16 @@ def handle_admin_callbacks(call):
 # -----------------
 @bot.channel_post_handler(func=lambda message: True)
 def handle_channel_posts(message):
-    global config
-    # If config IDs are 0, we can auto-capture them if admin hasn't set them yet
-    if config['source_channel'] == 0:
-         config['source_channel'] = message.chat.id
-         save_config(config)
-         bot.send_message(ADMIN_ID, f"Avtomatik sozlandim! Source Channel ID: {message.chat.id}")
-
-    # Forwarding logic
-    if config['is_forwarding_active'] and message.chat.id == config['source_channel']:
-        if config['destination_group'] != 0:
-            try:
-                # Copy message guarantees exact duplicate, forwards show 'Forwarded from'
-                bot.copy_message(config['destination_group'], message.chat.id, message.message_id)
-                # Then delete original
-                bot.delete_message(message.chat.id, message.message_id)
-            except Exception as e:
-                bot.send_message(ADMIN_ID, f"Xatolik: Kanal xabarini o'chirish/ko'chirishda muammo: {e}")
-
-# We also need a way to auto-capture destination group if missing
-@bot.message_handler(content_types=['text', 'photo', 'video', 'document'], func=lambda message: message.chat.type in ['group', 'supergroup'])
-def group_messages(message):
-    global config
-    if config['destination_group'] == 0:
-        config['destination_group'] = message.chat.id
-        save_config(config)
+    print(f"Message received from channel: {message.chat.id}")
+    # Forwarding logic enforced
+    if message.chat.id == SOURCE_CHANNEL:
         try:
-             bot.send_message(ADMIN_ID, f"Avtomatik sozlandim! Destination Group ID: {message.chat.id}")
-        except:
-             pass
+            bot.copy_message(DESTINATION_GROUP, message.chat.id, message.message_id)
+            bot.delete_message(message.chat.id, message.message_id)
+            print("Successfully copied and deleted message.")
+        except Exception as e:
+            bot.send_message(ADMIN_ID, f"Xatolik: Kanal xabarini o'chirish/ko'chirishda muammo: {e}")
+            print(f"Failed to copy and delete message: {e}")
 
 # -----------------
 # GENERAL USER LOGIC
@@ -216,20 +192,6 @@ def handle_text(message):
             del user_state[chat_id]
             admin_panel(message)
             return
-        
-        elif step == 'admin_set_source_chan':
-             # Admin is supposed to forward a message from the channel here
-             # We actually handle forwarded messages below, so if it's pure text we can check if it's an ID
-             try:
-                 channel_id = int(text)
-                 config['source_channel'] = channel_id
-                 save_config(config)
-                 bot.send_message(chat_id, "✅ Kanal ID saqlandi. Endi Group menda nimadir yozsa, ID ni olib qolaman.")
-                 del user_state[chat_id]
-                 admin_panel(message)
-             except:
-                 bot.send_message(chat_id, "Iltimos ID raqam yozing yoki menga kanaldan post FORWARD qiling.")
-             return
             
 
     # Users clicking buttons
@@ -277,20 +239,7 @@ def handle_text(message):
               
               bot.send_message(chat_id, "Ayni vaqtda turgan lokatsiyangizni yuboring:", reply_markup=markup)
 
-# Specialized handler for admin forwarding a message from channel to get its ID
-@bot.message_handler(content_types=['text', 'photo', 'video', 'document'], func=lambda msg: msg.forward_from_chat is not None)
-def handle_forwarded_from_channel(message):
-    chat_id = message.chat.id
-    if chat_id == ADMIN_ID and chat_id in user_state and user_state[chat_id]['step'] == 'admin_set_source_chan':
-         source_chat = message.forward_from_chat
-         if source_chat.type == 'channel':
-              config['source_channel'] = source_chat.id
-              save_config(config)
-              bot.send_message(chat_id, f"✅ Kanal ID ({source_chat.id}) saqlandi!\n\nEndi botni o'sha guruhga (https://t.me/Uski_ku) qo'shing va o'sha guruhga biror narsa yozing. Bot o'zi avtomatik Group ID-ni ushlab qoladi.")
-              del user_state[chat_id]
-              admin_panel(message)
-         else:
-              bot.send_message(chat_id, "Bu kanaldan yuborilgan xabar emas.")
+# Admin parsing was removed, so this is blank.
 
 @bot.message_handler(content_types=['contact'])
 def handle_contact(message):
@@ -315,7 +264,7 @@ def handle_location(message):
          state['lon'] = loc.longitude
          
          # Time to format and send everything to group
-         group_id = config['destination_group']
+         group_id = DESTINATION_GROUP
          
          order_title = "🚕 YANGI TAKSI BUYURTMA" if state['type'] == "Taksi" else "📦 YANGI POCHTA BUYURTMA"
          user_id = message.from_user.id
@@ -330,15 +279,12 @@ def handle_location(message):
          
          # Send to group
          try:
-             if group_id == 0:
-                  bot.send_message(chat_id, "Kechirasiz, admin hali guruhni sozlamagan. Buyurtma qabul qilinmadi.")
-             else:
-                  # Send Location marker first or Data first? Let's send Data then Location.
-                  # Note: Telegram can't combine Location format with long text.
-                  msg1 = bot.send_message(group_id, text, parse_mode="HTML")
-                  bot.send_location(group_id, state['lat'], state['lon'], reply_to_message_id=msg1.message_id)
-                  
-                  bot.send_message(chat_id, "✅ Sizning buyurtmangiz guruhga yuborildi! Tez orada shofyorlar siz bilan bog'lanishadi.")
+              # Send Location marker first or Data first? Let's send Data then Location.
+              # Note: Telegram can't combine Location format with long text.
+              msg1 = bot.send_message(group_id, text, parse_mode="HTML")
+              bot.send_location(group_id, state['lat'], state['lon'], reply_to_message_id=msg1.message_id)
+              
+              bot.send_message(chat_id, "✅ Sizning buyurtmangiz guruhga yuborildi! Tez orada shofyorlar siz bilan bog'lanishadi.")
          except Exception as e:
              bot.send_message(chat_id, "Tizimda xatolik yuz berdi. Iltimos keyinroq urinib ko'ring yoki adminga murojaat qiling.")
              print(f"Error sending order to group: {e}")
