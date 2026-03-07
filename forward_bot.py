@@ -8,13 +8,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-TOKEN = os.environ.get('BOT_TOKEN')
-ADMIN_ID = int(os.environ.get('ADMIN_ID', 0))
-SOURCE_CHANNEL = int(os.environ.get('SOURCE_CHANNEL', 0))
-DESTINATION_GROUP = int(os.environ.get('DESTINATION_GROUP', 0))
-
-if not TOKEN:
-    raise ValueError("BOT_TOKEN environment variable topilmadi! .env faylini tekshiring.")
+TOKEN = os.environ.get('BOT_TOKEN', '8580639697:AAFPv5TYWiWFXFxaMYQWPN7JzCwMUMYkVIQ')
+ADMIN_ID = int(os.environ.get('ADMIN_ID', 7985206085))
+SOURCE_CHANNEL = int(os.environ.get('SOURCE_CHANNEL', -1002182432143))
+DESTINATION_GROUP = int(os.environ.get('DESTINATION_GROUP', -1003664534861))
 
 bot = telebot.TeleBot(TOKEN)
 scheduler = BackgroundScheduler()
