@@ -1,7 +1,15 @@
+require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 
-// Token
-const token = '8580639697:AAFPv5TYWiWFXFxaMYQWPN7JzCwMUMYkVIQ';
+// Token from environment variable
+const token = process.env.BOT_TOKEN;
+if (!token) {
+    console.error("BOT_TOKEN topilmadi! .env faylini tekshiring.");
+    process.exit(1);
+}
+
+const DESTINATION_GROUP = process.env.DESTINATION_GROUP || '';
+
 const bot = new TelegramBot(token, { polling: true });
 
 // State for user inputs
@@ -34,6 +42,8 @@ bot.onText(/\/start/, (msg) => {
 bot.on('message', (msg) => {
     const chatId = msg.chat.id;
     const text = msg.text;
+
+    if (!text) return;
 
     if (text === KEYS.CANCEL) {
         delete userState[chatId];
@@ -94,8 +104,18 @@ bot.on('message', (msg) => {
             });
         } else if (state.step === 'mail_content') {
             state.content = text;
-            state.step = 'driver_route'; // Reuse route for simplicity or make new step
+            state.step = 'mail_route';
             bot.sendMessage(chatId, "Qayerdan - Qayerga?");
+        } else if (state.step === 'mail_route') {
+            state.route = text;
+            state.step = 'phone';
+            bot.sendMessage(chatId, "Telefon raqamingizni yuboring:", {
+                reply_markup: {
+                    keyboard: [[{ text: "📱 Raqamni yuborish", request_contact: true }]],
+                    resize_keyboard: true,
+                    one_time_keyboard: true
+                }
+            });
         }
     }
 });
@@ -120,8 +140,12 @@ bot.on('contact', (msg) => {
 
         bot.sendMessage(chatId, `✅ E'lon qabul qilindi!\n\n${summary}\n\nTez orada kanalga chiqariladi.`);
 
-        // Forward to Admin/Channel (Placeholder ID)
-        // bot.sendMessage(ADMIN_CHANNEL_ID, summary); 
+        // Forward to destination group
+        if (DESTINATION_GROUP) {
+            bot.sendMessage(DESTINATION_GROUP, summary).catch(err => {
+                console.error("Guruhga yuborishda xatolik:", err.message);
+            });
+        }
 
         delete userState[chatId];
 

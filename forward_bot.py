@@ -4,11 +4,17 @@ import json
 import os
 from apscheduler.schedulers.background import BackgroundScheduler
 from keep_alive import keep_alive
+from dotenv import load_dotenv
 
-TOKEN = '8580639697:AAFPv5TYWiWFXFxaMYQWPN7JzCwMUMYkVIQ'
-ADMIN_ID = 7985206085
-SOURCE_CHANNEL = -1002182432143
-DESTINATION_GROUP = -1003664534861
+load_dotenv()
+
+TOKEN = os.environ.get('BOT_TOKEN')
+ADMIN_ID = int(os.environ.get('ADMIN_ID', 0))
+SOURCE_CHANNEL = int(os.environ.get('SOURCE_CHANNEL', 0))
+DESTINATION_GROUP = int(os.environ.get('DESTINATION_GROUP', 0))
+
+if not TOKEN:
+    raise ValueError("BOT_TOKEN environment variable topilmadi! .env faylini tekshiring.")
 
 bot = telebot.TeleBot(TOKEN)
 scheduler = BackgroundScheduler()
@@ -20,7 +26,7 @@ def load_config():
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
-    return {'ad_text': '', 'ad_interval_minutes': 5, 'is_ad_active': False}
+    return {'ad_text': '', 'ad_interval_minutes': 5, 'is_ad_active': False, 'is_forwarding_active': True}
 
 def save_config(cfg):
     with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
@@ -48,6 +54,11 @@ reschedule_ad()
 # ---- KANALDAN GURUHGA FORWARD ----
 @bot.channel_post_handler(content_types=['text', 'photo', 'video', 'document', 'audio', 'voice', 'sticker', 'animation'])
 def forward_channel(message):
+    # Config'dan forwarding holatini tekshirish
+    c = load_config()
+    if not c.get('is_forwarding_active', True):
+        return
+
     print(f"[CHANNEL POST] chat_id={message.chat.id}")
     if message.chat.id == SOURCE_CHANNEL:
         try:
@@ -67,11 +78,16 @@ def admin_panel(message):
         types.InlineKeyboardButton(
             f"{'🟢 Reklama YOQILGAN' if config.get('is_ad_active') else '🔴 Reklama O`CHIRILGAN'}",
             callback_data="ad_toggle"
+        ),
+        types.InlineKeyboardButton(
+            f"{'🟢 Forward YOQILGAN' if config.get('is_forwarding_active', True) else '🔴 Forward O`CHIRILGAN'}",
+            callback_data="fwd_toggle"
         )
     )
     txt = (f"🛠 *Admin Panel*\n\n"
            f"📢 Reklama: {'Yoqilgan' if config.get('is_ad_active') else 'O`chirilgan'}\n"
            f"⏱ Interval: {config.get('ad_interval_minutes', 5)} minut\n"
+           f"🔄 Forward: {'Yoqilgan' if config.get('is_forwarding_active', True) else 'O`chirilgan'}\n"
            f"📝 Matn:\n{config.get('ad_text', '(bo`sh)')}")
     bot.send_message(message.chat.id, txt, reply_markup=markup, parse_mode="Markdown")
 
@@ -89,6 +105,11 @@ def admin_cb(call):
         save_config(config)
         reschedule_ad()
         bot.answer_callback_query(call.id, "O'zgartirildi!")
+        admin_panel(call.message)
+    elif call.data == "fwd_toggle":
+        config['is_forwarding_active'] = not config.get('is_forwarding_active', True)
+        save_config(config)
+        bot.answer_callback_query(call.id, "Forward holati o'zgartirildi!")
         admin_panel(call.message)
 
 # ---- /start ----
@@ -116,11 +137,15 @@ def handle_text(message):
             return
         elif user_state[cid] == 'set_ad_time':
             try:
-                config['ad_interval_minutes'] = int(text)
+                minutes = int(text)
+                if minutes <= 0:
+                    bot.send_message(cid, "Musbat raqam yozing!")
+                    return
+                config['ad_interval_minutes'] = minutes
                 save_config(config)
                 reschedule_ad()
                 bot.send_message(cid, f"✅ Interval {text} minut qilib belgilandi!")
-            except:
+            except ValueError:
                 bot.send_message(cid, "Faqat raqam yozing!")
                 return
             del user_state[cid]
