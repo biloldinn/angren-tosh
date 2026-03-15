@@ -1,1 +1,1 @@
-web: gunicorn keep_alive:app & python forward_bot.py
+web: gunicorn app:app & python forward_bot.py
