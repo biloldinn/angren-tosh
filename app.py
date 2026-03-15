@@ -25,4 +25,4 @@ if __name__ == "__main__":
     bot_thread.start()
     
     # Run Flask app
-    app.run(host="0.0.0.0", port=8080)
+    app.run(host="0.0.0.0", port=7860)
