@@ -1,7 +1,6 @@
 {
     "ad_text": "Sizning reklamangiz shu yerda bo'lishi mumkin!",
-    "source_channel": -1001476906232,
-    "destination_group": -1001859873461,
+    "destination_group": null,
     "is_ad_active": false,
     "is_forwarding_active": true
 }

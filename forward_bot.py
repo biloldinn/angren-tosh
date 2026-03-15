@@ -2,7 +2,9 @@ import telebot
 from telebot import types
 import json
 import os
+import threading
 from apscheduler.schedulers.background import BackgroundScheduler
+from app import app
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -301,6 +303,11 @@ def handle_location(message):
         
         bot.send_message(cid, summary, reply_markup=markup, parse_mode="HTML")
 
+def run_web():
+    app.run(host="0.0.0.0", port=8080)
+
 if __name__ == '__main__':
+    print("Web server başlatılıyor...")
+    threading.Thread(target=run_web, daemon=True).start()
     print("Bot ishga tushdi!")
     bot.infinity_polling(allowed_updates=["message", "callback_query", "channel_post"])
