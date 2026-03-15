@@ -7,11 +7,22 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from app import app
 from dotenv import load_dotenv
 
+import sys
+
 load_dotenv()
 
-TOKEN = os.environ.get('BOT_TOKEN', 'YOUR_BOT_TOKEN')
-ADMIN_ID = int(os.environ.get('ADMIN_ID', 7985206085))
+TOKEN = os.environ.get('BOT_TOKEN')
+if not TOKEN or TOKEN == 'YOUR_BOT_TOKEN':
+    print("[ERROR] BOT_TOKEN topilmadi yoki xato! Render'da Environment Variables qismini tekshiring.", flush=True)
 
+try:
+    admin_env = os.environ.get('ADMIN_ID', '7985206085')
+    ADMIN_ID = int(admin_env)
+except ValueError:
+    print(f"[ERROR] ADMIN_ID xato formatda: {admin_env}. Faqat raqam bo'lishi kerak.", flush=True)
+    ADMIN_ID = 7985206085
+
+print(f"[LOG] Bot initializing with Admin ID: {ADMIN_ID}...", flush=True)
 bot = telebot.TeleBot(TOKEN)
 scheduler = BackgroundScheduler()
 user_state = {}
@@ -304,5 +315,9 @@ def handle_location(message):
         bot.send_message(cid, summary, reply_markup=markup, parse_mode="HTML")
 
 if __name__ == '__main__':
-    print("Bot ishga tushdi!")
-    bot.infinity_polling(allowed_updates=["message", "callback_query", "channel_post"])
+    print("[LOG] Bot ishga tushirildi!", flush=True)
+    try:
+        bot.infinity_polling(allowed_updates=["message", "callback_query", "channel_post"], timeout=60)
+    except Exception as e:
+        print(f"[FATAL ERROR] Bot to'xtab qoldi: {e}", flush=True)
+        sys.exit(1)
