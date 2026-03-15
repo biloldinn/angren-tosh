@@ -1,6 +1,6 @@
 {
     "ad_text": "Sizning reklamangiz shu yerda bo'lishi mumkin!",
-    "ad_interval_minutes": 5,
+    "destination_group": -1001859873461,
     "is_ad_active": false,
     "is_forwarding_active": true
 }
