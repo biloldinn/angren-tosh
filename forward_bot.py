@@ -51,19 +51,33 @@ reschedule_ad()
 # ---- KANALDAN GURUHGA FORWARD ----
 @bot.channel_post_handler(content_types=['text', 'photo', 'video', 'document', 'audio', 'voice', 'sticker', 'animation'])
 def forward_channel(message):
-    # Config'dan forwarding holatini tekshirish
-    c = load_config()
-    if not c.get('is_forwarding_active', True):
+    print(f"[LOG] Channel post received from chat_id={message.chat.id}")
+    # Reload config to get latest status
+    cfg = load_config()
+    source_id = cfg.get('source_channel', SOURCE_CHANNEL)
+    dest_id = cfg.get('destination_group', DESTINATION_GROUP)
+
+    print(f"[LOG] Attempting to match {message.chat.id} with source_channel {source_id}")
+    
+    if not cfg.get('is_forwarding_active', False):
+        print(f"[LOG] Forwarding is disabled in config.")
         return
 
-    print(f"[CHANNEL POST] chat_id={message.chat.id}")
-    if message.chat.id == SOURCE_CHANNEL:
+    if message.chat.id == source_id:
+        print(f"[LOG] Match found! Forwarding message {message.message_id} to {dest_id}")
         try:
-            bot.copy_message(DESTINATION_GROUP, message.chat.id, message.message_id)
-            bot.delete_message(message.chat.id, message.message_id)
-            print("[OK] Forwarded and deleted")
+            bot.copy_message(dest_id, message.chat.id, message.message_id)
+            print(f"[OK] Copied {message.message_id} to {dest_id}")
+            
+            try:
+                bot.delete_message(message.chat.id, message.message_id)
+                print(f"[OK] Deleted {message.message_id} from {source_id}")
+            except Exception as e:
+                print(f"[WARN] Delete failed: {e}")
         except Exception as e:
-            print(f"[ERROR] Forward failed: {e}")
+            print(f"[ERROR] Copy failed: {e}. Check if bot is admin in BOTH channel and group.")
+    else:
+        print(f"[LOG] Chat ID {message.chat.id} does not match source {source_id}")
 
 # ---- ADMIN PANEL ----
 @bot.message_handler(commands=['admin'], func=lambda m: m.from_user.id == ADMIN_ID)
@@ -112,11 +126,16 @@ def admin_cb(call):
 # ---- /start ----
 @bot.message_handler(commands=['start'])
 def start(message):
+    print(f"[LOG] Start command received from {message.from_user.id}")
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row(types.KeyboardButton("🚕 Taksi chaqirish"), types.KeyboardButton("📦 Pochta jo'natish"))
-    bot.send_message(message.chat.id,
-        f"Assalomu alaykum, {message.from_user.first_name}!\nTugmalardan birini tanlang:",
-        reply_markup=markup)
+    try:
+        bot.send_message(message.chat.id,
+            f"Assalomu alaykum, {message.from_user.first_name}!\nTugmalardan birini tanlang:",
+            reply_markup=markup)
+        print(f"[LOG] Start message sent successfully")
+    except Exception as e:
+        print(f"[ERROR] Failed to send start message: {e}")
 
 # ---- TEXT HANDLER ----
 @bot.message_handler(content_types=['text'], func=lambda m: m.chat.type == 'private')
