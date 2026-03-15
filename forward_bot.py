@@ -102,26 +102,70 @@ def admin_panel(message):
            f"📝 Matn:\n{config.get('ad_text', '(bo`sh)')}")
     bot.send_message(message.chat.id, txt, reply_markup=markup, parse_mode="Markdown")
 
-@bot.callback_query_handler(func=lambda c: c.from_user.id == ADMIN_ID)
-def admin_cb(call):
+@bot.callback_query_handler(func=lambda c: True)
+def handle_callback(call):
     cid = call.message.chat.id
-    if call.data == "ad_text":
-        user_state[cid] = 'set_ad_text'
-        bot.send_message(cid, "Reklama matnini yuboring:")
-    elif call.data == "ad_time":
-        user_state[cid] = 'set_ad_time'
-        bot.send_message(cid, "Necha minutda bir chiqsin? (faqat raqam):")
-    elif call.data == "ad_toggle":
-        config['is_ad_active'] = not config.get('is_ad_active', False)
-        save_config(config)
-        reschedule_ad()
-        bot.answer_callback_query(call.id, "O'zgartirildi!")
-        admin_panel(call.message)
-    elif call.data == "fwd_toggle":
-        config['is_forwarding_active'] = not config.get('is_forwarding_active', True)
-        save_config(config)
-        bot.answer_callback_query(call.id, "Forward holati o'zgartirildi!")
-        admin_panel(call.message)
+    mid = call.message.message_id
+    
+    # Admin actions
+    if call.from_user.id == ADMIN_ID and call.data.startswith('ad_') or call.data.startswith('fwd_'):
+        if call.data == "ad_text":
+            user_state[cid] = 'set_ad_text'
+            bot.send_message(cid, "Reklama matnini yuboring:")
+        elif call.data == "ad_time":
+            user_state[cid] = 'set_ad_time'
+            bot.send_message(cid, "Necha minutda bir chiqsin? (faqat raqam):")
+        elif call.data == "ad_toggle":
+            config['is_ad_active'] = not config.get('is_ad_active', False)
+            save_config(config)
+            reschedule_ad()
+            bot.answer_callback_query(call.id, "O'zgartirildi!")
+            admin_panel(call.message)
+        elif call.data == "fwd_toggle":
+            config['is_forwarding_active'] = not config.get('is_forwarding_active', True)
+            save_config(config)
+            bot.answer_callback_query(call.id, "Forward holati o'zgartirildi!")
+            admin_panel(call.message)
+        return
+
+    # User actions (Order confirmation)
+    if cid in user_state and isinstance(user_state[cid], dict):
+        s = user_state[cid]
+        if call.data == "confirm_order":
+            try:
+                cfg = load_config()
+                dest_id = cfg.get('destination_group', DESTINATION_GROUP)
+                
+                uid = call.from_user.id
+                profile = f"<a href='tg://user?id={uid}'>{s['name']}</a>"
+                title = "🚕 YANGI TAKSI BUYURTMA" if s['type'] == 'Taksi' else "📦 YANGI POCHTA BUYURTMA"
+                txt = (f"<b>{title}</b>\n\n"
+                       f"👤 <b>Mijoz:</b> {profile}\n"
+                       f"📞 <b>Tel:</b> +{s['phone'].lstrip('+')}\n"
+                       f"📍 <b>Qayerdan:</b> {s['from_loc']}\n"
+                       f"🏁 <b>Qayerga:</b> {s['to_loc']}\n")
+                
+                msg = bot.send_message(dest_id, txt, parse_mode="HTML")
+                if 'lat' in s and 'lon' in s:
+                    bot.send_location(dest_id, s['lat'], s['lon'], reply_to_message_id=msg.message_id)
+                
+                bot.edit_message_text("✅ Hurmatli mijoz, siz bilan tez orada bog'lanishadi. Buyurtmangiz qabul qilindi.", cid, mid)
+            except Exception as e:
+                bot.send_message(cid, "❌ Xatolik yuz berdi, iltimos qaytadan urinib ko'ring.")
+                print(f"[ERROR] Finalizing order: {e}")
+            
+            del user_state[cid]
+            # Main menu
+            mk = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            mk.row(types.KeyboardButton("🚕 Taksi chaqirish"), types.KeyboardButton("📦 Pochta jo'natish"))
+            bot.send_message(cid, "Yana xizmat kerakmi?", reply_markup=mk)
+            
+        elif call.data == "cancel_order":
+            del user_state[cid]
+            bot.edit_message_text("🚫 Buyurtma bekor qilindi.", cid, mid)
+            mk = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            mk.row(types.KeyboardButton("🚕 Taksi chaqirish"), types.KeyboardButton("📦 Pochta jo'natish"))
+            bot.send_message(cid, "Bosh menyu:", reply_markup=mk)
 
 # ---- /start ----
 @bot.message_handler(commands=['start'])
@@ -223,25 +267,24 @@ def handle_location(message):
     cid = message.chat.id
     if cid in user_state and isinstance(user_state[cid], dict) and user_state[cid]['step'] == 'location':
         s = user_state[cid]
-        uid = message.from_user.id
-        profile = f"<a href='tg://user?id={uid}'>{s['name']}</a>"
-        title = "🚕 YANGI TAKSI BUYURTMA" if s['type'] == 'Taksi' else "📦 YANGI POCHTA BUYURTMA"
-        txt = (f"<b>{title}</b>\n\n"
-               f"👤 <b>Mijoz:</b> {profile}\n"
-               f"📞 <b>Tel:</b> +{s['phone'].lstrip('+')}\n"
-               f"📍 <b>Qayerdan:</b> {s['from_loc']}\n"
-               f"🏁 <b>Qayerga:</b> {s['to_loc']}\n")
-        try:
-            msg = bot.send_message(DESTINATION_GROUP, txt, parse_mode="HTML")
-            bot.send_location(DESTINATION_GROUP, message.location.latitude, message.location.longitude, reply_to_message_id=msg.message_id)
-            bot.send_message(cid, "✅ Buyurtmangiz qabul qilindi!")
-        except Exception as e:
-            bot.send_message(cid, "Xatolik yuz berdi, keyinroq urinib ko'ring.")
-            print(f"Order error: {e}")
-        del user_state[cid]
-        mk = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        mk.row(types.KeyboardButton("🚕 Taksi chaqirish"), types.KeyboardButton("📦 Pochta jo'natish"))
-        bot.send_message(cid, "Yana xizmat kerakmi?", reply_markup=mk)
+        s['lat'] = message.location.latitude
+        s['lon'] = message.location.longitude
+        
+        # Confirmation keyboard
+        markup = types.InlineKeyboardMarkup()
+        markup.add(
+            types.InlineKeyboardButton("✅ Tasdiqlash (Yuborish)", callback_data="confirm_order"),
+            types.InlineKeyboardButton("❌ Rad etish", callback_data="cancel_order")
+        )
+        
+        summary = (f"📋 <b>Buyurtma ma'lumotlari:</b>\n\n"
+                  f"👤 Ism: {s['name']}\n"
+                  f"📞 Tel: +{s['phone'].lstrip('+')}\n"
+                  f"📍 Qayerdan: {s['from_loc']}\n"
+                  f"🏁 Qayerga: {s['to_loc']}\n\n"
+                  f"Ma'lumotlar to'g'rimi?")
+        
+        bot.send_message(cid, summary, reply_markup=markup, parse_mode="HTML")
 
 if __name__ == '__main__':
     keep_alive()
