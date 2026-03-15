@@ -7,10 +7,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-TOKEN = os.environ.get('BOT_TOKEN', '8580639697:AAFPv5TYWiWFXFxaMYQWPN7JzCwMUMYkVIQ')
+TOKEN = os.environ.get('BOT_TOKEN', 'YOUR_BOT_TOKEN')
 ADMIN_ID = int(os.environ.get('ADMIN_ID', 7985206085))
-SOURCE_CHANNEL = -1001476906232 # https://t.me/TOSHKENTANGRENTAKSI
-DESTINATION_GROUP = -1001859873461 # https://t.me/ANGREN_TOSHKENT_TAKSI_POCHTA
 
 bot = telebot.TeleBot(TOKEN)
 scheduler = BackgroundScheduler()
@@ -33,9 +31,10 @@ config = load_config()
 # ---- REKLAMA ----
 def send_ad():
     c = load_config()
-    if c.get('is_ad_active') and c.get('ad_text'):
+    source_id = c.get('source_channel')
+    if c.get('is_ad_active') and c.get('ad_text') and source_id:
         try:
-            bot.send_message(SOURCE_CHANNEL, c['ad_text'])
+            bot.send_message(source_id, c['ad_text'])
         except Exception as e:
             print(f"Ad error: {e}")
 
@@ -51,32 +50,45 @@ reschedule_ad()
 @bot.channel_post_handler(content_types=['text', 'photo', 'video', 'document', 'audio', 'voice', 'sticker', 'animation'])
 def forward_channel(message):
     print(f"[LOG] Channel post received from chat_id={message.chat.id}")
-    # Reload config to get latest status
     cfg = load_config()
-    source_id = cfg.get('source_channel', SOURCE_CHANNEL)
-    dest_id = cfg.get('destination_group', DESTINATION_GROUP)
-
-    print(f"[LOG] Attempting to match {message.chat.id} with source_channel {source_id}")
     
+    # Auto-learn the source channel for ads
+    if cfg.get('source_channel') != message.chat.id:
+        cfg['source_channel'] = message.chat.id
+        save_config(cfg)
+        print(f"[LOG] Updated source_channel to {message.chat.id}")
+
+    dest_id = cfg.get('destination_group')
+    if not dest_id:
+        print(f"[LOG] No destination group configured. Use /setgroup in a group to set one.")
+        return
+
     if not cfg.get('is_forwarding_active', False):
         print(f"[LOG] Forwarding is disabled in config.")
         return
 
-    if message.chat.id == source_id:
-        print(f"[LOG] Match found! Forwarding message {message.message_id} to {dest_id}")
+    print(f"[LOG] Forwarding message {message.message_id} to {dest_id}")
+    try:
+        bot.copy_message(dest_id, message.chat.id, message.message_id)
+        print(f"[OK] Copied {message.message_id} to {dest_id}")
+        
         try:
-            bot.copy_message(dest_id, message.chat.id, message.message_id)
-            print(f"[OK] Copied {message.message_id} to {dest_id}")
-            
-            try:
-                bot.delete_message(message.chat.id, message.message_id)
-                print(f"[OK] Deleted {message.message_id} from {source_id}")
-            except Exception as e:
-                print(f"[WARN] Delete failed: {e}")
+            bot.delete_message(message.chat.id, message.message_id)
+            print(f"[OK] Deleted {message.message_id} from channel")
         except Exception as e:
-            print(f"[ERROR] Copy failed: {e}. Check if bot is admin in BOTH channel and group.")
+            print(f"[WARN] Delete failed: {e}")
+    except Exception as e:
+        print(f"[ERROR] Copy failed: {e}. Check if bot is admin in BOTH channel and group.")
+        
+# ---- SET GROUP ID ----
+@bot.message_handler(commands=['setgroup'], func=lambda m: m.from_user.id == ADMIN_ID)
+def set_destination_group(message):
+    if message.chat.type in ['group', 'supergroup']:
+        config['destination_group'] = message.chat.id
+        save_config(config)
+        bot.reply_to(message, f"✅ Bu guruh ({message.chat.id}) qabul qilish guruhi etib belgilandi!")
     else:
-        print(f"[LOG] Chat ID {message.chat.id} does not match source {source_id}")
+        bot.reply_to(message, "Bu buyruqni faqat guruhda yozish orqali guruhni ro'yxatdan o'tkazasiz.")
 
 # ---- ADMIN PANEL ----
 @bot.message_handler(commands=['admin'], func=lambda m: m.from_user.id == ADMIN_ID)
@@ -131,10 +143,14 @@ def handle_callback(call):
     if cid in user_state and isinstance(user_state[cid], dict):
         s = user_state[cid]
         if call.data == "confirm_order":
+            cfg = load_config()
+            dest_id = cfg.get('destination_group')
+            
+            if not dest_id:
+                bot.send_message(cid, "❌ Xatolik: Guruh hali sozlanmagan. Admin /setgroup buyrug'ini ishlatishi kerak.")
+                return
+
             try:
-                cfg = load_config()
-                dest_id = cfg.get('destination_group', DESTINATION_GROUP)
-                
                 uid = call.from_user.id
                 profile = f"<a href='tg://user?id={uid}'>{s['name']}</a>"
                 title = "🚕 YANGI TAKSI BUYURTMA" if s['type'] == 'Taksi' else "📦 YANGI POCHTA BUYURTMA"
