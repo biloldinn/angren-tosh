@@ -3,7 +3,6 @@ from telebot import types
 import json
 import os
 from apscheduler.schedulers.background import BackgroundScheduler
-from keep_alive import keep_alive
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -287,6 +286,5 @@ def handle_location(message):
         bot.send_message(cid, summary, reply_markup=markup, parse_mode="HTML")
 
 if __name__ == '__main__':
-    keep_alive()
     print("Bot ishga tushdi!")
     bot.infinity_polling(allowed_updates=["message", "callback_query", "channel_post"])
