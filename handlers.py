@@ -166,6 +166,10 @@ def register_handlers():
             if target:
                 title = "🚕 #YANGI_TAKSI" if state['type'] == 'Taksi' else "📦 #YANGI_POCHTA"
                 profile = f"<a href='tg://user?id={cid}'>{state['name']}</a>"
+                # Time formatting (UTC+5 for Uzbekistan)
+                from datetime import datetime, timedelta
+                uz_time = (datetime.fromtimestamp(message.date) + timedelta(hours=5)).strftime('%H:%M:%S')
+                
                 text = (f"📥 <b>{title}</b>\n"
                         f"━━━━━━━━━━━━━━━━━━\n"
                         f"👤 <b>Mijoz:</b> {profile}\n"
@@ -173,7 +177,7 @@ def register_handlers():
                         f"📍 <b>Qayerdan:</b> <code>{state['from']}</code>\n"
                         f"🏁 <b>Qayerga:</b> <code>{state['to']}</code>\n"
                         f"━━━━━━━━━━━━━━━━━━\n"
-                        f"🕒 <i>Vaqt: {message.date}</i>")
+                        f"🕒 <b>Vaqt:</b> <code>{uz_time}</code>")
                 
                 # Buttons for Group
                 mk_group = types.InlineKeyboardMarkup()
