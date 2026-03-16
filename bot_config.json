@@ -1,6 +1,10 @@
 {
-    "ad_text": "Sizning reklamangiz shu yerda bo'lishi mumkin!",
-    "destination_group": null,
+    "ad_text": "👋 ASSALOMU ALAYKUM, HURMATLI GURUH A’ZOLARI!\n\n🚕 ANGREN — TOSHKENT VA VILOYATLAR YO‘NALISHIDA TAKSI XIZMATI FAOL!\n💬 BU GURUHDA BEMALOL YOZISHINGIZ, SAVOL BERISHINGIZ VA MA’LUMOT OLISHINGIZ MUMKIN!\n⏱️ BUYURTMALAR BOT ORQALI 5 DAQIQA ICHIDA SIZ BILAN BOG‘LANADI.\n✅ ISHONCHLI VA QULAY XIZMAT!\n📲 BOT ORQALI ZAKAZ BERISH:\n👉 @Toshkent_angiren_bot\n\n🙏 BIZNI TANLAGANINGIZDAN MAMNUN BO‘LAMIZ!",
+    "ad_photo": null,
+    "ad_interval_minutes": 5,
     "is_ad_active": false,
-    "is_forwarding_active": true
+    "is_forwarding_active": true,
+    "source_group": null,
+    "destination_group": "-1003415910280",
+    "ad_target_group": "-1003415910280"
 }

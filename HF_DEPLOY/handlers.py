@@ -14,9 +14,8 @@ def register_handlers():
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         markup.row(types.KeyboardButton("🚕 Taksi chaqirish"), types.KeyboardButton("📦 Pochta jo'natish"))
         bot.send_message(message.chat.id, 
-            f"🌟 *Assalomu alaykum, {message.from_user.first_name}!*\n\n"
-            "Sizga qanday xizmat kerak? Quyidagi tugmalardan birini tanlang:", 
-            reply_markup=markup, parse_mode="Markdown")
+            f"Assalomu alaykum, {message.from_user.first_name}!\nTugmalardan birini tanlang:", 
+            reply_markup=markup)
 
     @bot.message_handler(commands=['status'])
     def status(message):
@@ -93,11 +92,7 @@ def register_handlers():
     def start_order(message):
         cid = message.chat.id
         user_states[cid] = {'type': 'Taksi' if "Taksi" in message.text else 'Pochta', 'step': 'name'}
-        
-        cancel_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        cancel_markup.add(types.KeyboardButton("❌ Bekor qilish"))
-        
-        bot.send_message(cid, "📝 *Ismingizni yozing:*", reply_markup=cancel_markup, parse_mode="Markdown")
+        bot.send_message(cid, "Ismingizni yozing:", reply_markup=types.ReplyKeyboardRemove())
 
     @bot.message_handler(func=lambda m: m.chat.id in user_states and isinstance(user_states[m.chat.id], dict))
     def order_steps(message):
@@ -110,23 +105,17 @@ def register_handlers():
             state['step'] = 'phone'
             mk = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
             mk.add(types.KeyboardButton("📱 Raqamni yuborish", request_contact=True))
-            bot.send_message(cid, "📞 *Telefon raqamingizni yuboring:*", reply_markup=mk, parse_mode="Markdown")
-        elif step == 'phone':
-            # This is for manual text entry of phone if they don't use the button
-            state['phone'] = message.text
-            state['step'] = 'from'
-            bot.send_message(cid, "📍 *Qayerdan:*", parse_mode="Markdown")
+            bot.send_message(cid, "Telefon raqamingizni yuboring:", reply_markup=mk)
         elif step == 'from':
             state['from'] = message.text
             state['step'] = 'to'
-            bot.send_message(cid, "🏁 *Qayerga:*", parse_mode="Markdown")
+            bot.send_message(cid, "Qayerga?")
         elif step == 'to':
             state['to'] = message.text
             state['step'] = 'location'
             mk = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
             mk.add(types.KeyboardButton("📍 Lokatsiyani yuborish", request_location=True))
-            mk.add(types.KeyboardButton("❌ Bekor qilish"))
-            bot.send_message(cid, "🗺 *Lokatsiyangizni yuboring:*", reply_markup=mk, parse_mode="Markdown")
+            bot.send_message(cid, "Lokatsiyangizni yuboring:", reply_markup=mk)
 
     @bot.message_handler(content_types=['contact'])
     def handle_contact(message):
@@ -147,20 +136,17 @@ def register_handlers():
             # Finalize order to destinaton group
             target = config.get('destination_group')
             if target:
-                title = "🚕 #YANGI_TAKSI" if state['type'] == 'Taksi' else "📦 #YANGI_POCHTA"
+                title = "🚕 YANGI TAKSI" if state['type'] == 'Taksi' else "📦 YANGI POCHTA"
                 profile = f"<a href='tg://user?id={cid}'>{state['name']}</a>"
-                text = (f"📥 <b>{title}</b>\n"
-                        f"━━━━━━━━━━━━━━━━━━\n"
-                        f"👤 <b>Mijoz:</b> {profile}\n"
-                        f"📞 <b>Tel:</b> <code>+{state['phone']}</code>\n"
-                        f"📍 <b>Qayerdan:</b> <code>{state['from']}</code>\n"
-                        f"🏁 <b>Qayerga:</b> <code>{state['to']}</code>\n"
-                        f"━━━━━━━━━━━━━━━━━━\n"
-                        f"🕒 <i>Vaqt: {message.date}</i>")
+                text = (f"<b>{title}</b>\n\n"
+                        f"👤 Mijoz: {profile}\n"
+                        f"📞 Tel: +{state['phone']}\n"
+                        f"📍 Qayerdan: {state['from']}\n"
+                        f"🏁 Qayerga: {state['to']}")
                 
                 m = bot.send_message(target, text, parse_mode="HTML")
                 bot.send_location(target, state['lat'], state['lon'], reply_to_message_id=m.message_id)
-                bot.send_message(cid, "✅ *Buyurtmangiz qabul qilindi!* Tez orada aloqaga chiqamiz.", parse_mode="Markdown")
+                bot.send_message(cid, "✅ Buyurtmangiz qabul qilindi!")
             else:
                 bot.send_message(cid, "❌ Xatolik: Guruh sozlanmagan.")
             
@@ -199,11 +185,6 @@ def register_handlers():
             save_config(config)
             bot.send_message(cid, "✅ Reklama guruhi saqlandi.")
         
-        elif message.text == "❌ Bekor qilish":
-            bot.send_message(cid, "Amal bekor qilindi.", reply_markup=types.ReplyKeyboardRemove())
-            start(message)
-            return
-
         if cid in user_states: del user_states[cid]
 
     @bot.message_handler(content_types=['photo'])
