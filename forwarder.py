@@ -16,11 +16,13 @@ def handle_forwarding(message):
         try:
             user = message.from_user
             if not user:
-                # For channel posts, from_user might be None
                 profile_link = "Noma'lum"
             else:
                 name = user.first_name + (f" {user.last_name}" if user.last_name else "")
-                profile_link = f"<a href='tg://user?id={user.id}'>{name}</a>"
+                if user.username:
+                    profile_link = f"<a href='https://t.me/{user.username}'>{name} (@{user.username})</a>"
+                else:
+                    profile_link = f"<a href='tg://user?id={user.id}'>{name} (Profil)</a>"
 
             footer = f"\n\n👤 <b>Mijoz:</b> {profile_link}"
             
