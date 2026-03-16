@@ -4,7 +4,7 @@
     "ad_interval_minutes": 5,
     "is_ad_active": false,
     "is_forwarding_active": true,
-    "source_group": null,
+    "source_group": "-1002182432143",
     "destination_group": "-1003415910280",
     "ad_target_group": "-1003415910280"
 }
