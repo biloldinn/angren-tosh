@@ -243,6 +243,36 @@ def register_handlers():
             bot.send_message(cid, "✅ Reklama rasmi saqlandi.")
             del user_states[cid]
 
+    @bot.callback_query_handler(func=lambda c: c.data.startswith('order_'))
+    def order_callbacks(call):
+        cid = call.message.chat.id
+        data = call.data.split('_')
+        action = data[1]
+        customer_id = data[2]
+        
+        # Get original text
+        text = call.message.text
+        
+        if action == "accept":
+            # Update message in group
+            new_text = f"✅ <b>QABUL QILINDI</b>\n━━━━━━━━━━━━━━━━━━\n{text}\n━━━━━━━━━━━━━━━━━━\n👤 Admin: <a href='tg://user?id={call.from_user.id}'>{call.from_user.first_name}</a>"
+            bot.edit_message_text(new_text, cid, call.message.message_id, parse_mode="HTML", reply_markup=None)
+            
+            # Notify customer
+            try:
+                bot.send_message(customer_id, "✅ <b>Buyurtmangiz qabul qilindi!</b>\nHozir haydovchi siz bilan bog'lanadi.", parse_mode="HTML")
+            except Exception as e:
+                logger.error(f"Could not notify customer {customer_id}: {e}")
+            
+            bot.answer_callback_query(call.id, "Buyurtma qabul qilindi!")
+            
+        elif action == "reject":
+            # Update message in group
+            new_text = f"❌ <b>RAD ETILDI</b>\n━━━━━━━━━━━━━━━━━━\n{text}\n━━━━━━━━━━━━━━━━━━\n👤 Admin: <a href='tg://user?id={call.from_user.id}'>{call.from_user.first_name}</a>"
+            bot.edit_message_text(new_text, cid, call.message.message_id, parse_mode="HTML", reply_markup=None)
+            
+            bot.answer_callback_query(call.id, "Buyurtma rad etildi!")
+
     # Forwarding handler
     @bot.message_handler(func=lambda m: True)
     @bot.channel_post_handler(func=lambda m: True)
