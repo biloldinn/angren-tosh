@@ -3,6 +3,7 @@ import time
 from bot_instance import bot
 from config import config
 from logger import logger
+import html
 
 def handle_forwarding(message):
     cfg = config
@@ -18,7 +19,7 @@ def handle_forwarding(message):
             if not user:
                 profile_link = "Noma'lum"
             else:
-                name = user.first_name + (f" {user.last_name}" if user.last_name else "")
+                name = html.escape(user.first_name + (f" {user.last_name}" if user.last_name else ""))
                 if user.username:
                     profile_link = f"<a href='https://t.me/{user.username}'>{name} (@{user.username})</a>"
                 else:
@@ -28,13 +29,13 @@ def handle_forwarding(message):
             
             # Forward based on content type
             if message.text:
-                new_text = message.text + footer
+                new_text = html.escape(message.text) + footer
                 bot.send_message(target, new_text, parse_mode="HTML")
             elif message.photo:
-                caption = (message.caption or "") + footer
+                caption = html.escape(message.caption or "") + footer
                 bot.send_photo(target, message.photo[-1].file_id, caption=caption, parse_mode="HTML")
             elif message.video:
-                caption = (message.caption or "") + footer
+                caption = html.escape(message.caption or "") + footer
                 bot.send_video(target, message.video.file_id, caption=caption, parse_mode="HTML")
             else:
                 # For other types, just copy but add a notification message

@@ -2,6 +2,7 @@ from bot_instance import bot
 from config import config, save_config, ADMIN_ID
 from logger import logger
 from telebot import types
+import html
 import ads
 import forwarder
 
@@ -165,17 +166,21 @@ def register_handlers():
             target = config.get('destination_group')
             if target:
                 title = "🚕 #YANGI_TAKSI" if state['type'] == 'Taksi' else "📦 #YANGI_POCHTA"
-                profile = f"<a href='tg://user?id={cid}'>{state['name']}</a>"
+                esc_name = html.escape(state['name'])
+                profile = f"<a href='tg://user?id={cid}'>{esc_name}</a>"
                 # Time formatting (UTC+5 for Uzbekistan)
                 from datetime import datetime, timedelta
                 uz_time = (datetime.fromtimestamp(message.date) + timedelta(hours=5)).strftime('%H:%M:%S')
+                
+                esc_from = html.escape(state['from'])
+                esc_to = html.escape(state['to'])
                 
                 text = (f"📥 <b>{title}</b>\n"
                         f"━━━━━━━━━━━━━━━━━━\n"
                         f"👤 <b>Mijoz:</b> {profile}\n"
                         f"📞 <b>Tel:</b> <code>+{state['phone']}</code>\n"
-                        f"📍 <b>Qayerdan:</b> <code>{state['from']}</code>\n"
-                        f"🏁 <b>Qayerga:</b> <code>{state['to']}</code>\n"
+                        f"📍 <b>Qayerdan:</b> <code>{esc_from}</code>\n"
+                        f"🏁 <b>Qayerga:</b> <code>{esc_to}</code>\n"
                         f"━━━━━━━━━━━━━━━━━━\n"
                         f"🕒 <b>Vaqt:</b> <code>{uz_time}</code>")
                 
