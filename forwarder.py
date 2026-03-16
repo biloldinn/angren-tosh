@@ -24,7 +24,7 @@ def handle_forwarding(message):
                 else:
                     profile_link = f"<a href='tg://user?id={user.id}'>{name} (Profil)</a>"
 
-            footer = f"\n\n👤 <b>Mijoz:</b> {profile_link}"
+            footer = f"\n\n👉 <b>Mijoz:</b> {profile_link}"
             
             # Forward based on content type
             if message.text:
