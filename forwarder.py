@@ -15,13 +15,12 @@ def handle_forwarding(message):
     if str(message.chat.id) == str(source) or message.chat.username == str(source).replace('@', ''):
         try:
             # Copy message to target
-            copied_msg = bot.copy_message(target, message.chat.id, message.message_id)
+            bot.copy_message(target, message.chat.id, message.message_id)
             logger.info(f"Message {message.message_id} forwarded from {source} to {target}")
             
-            # Wait 1s and delete from source
-            time.sleep(1)
+            # Delete from source
             bot.delete_message(message.chat.id, message.message_id)
-            logger.info(f"Message {message.message_id} deleted from {source}")
+            logger.info(f"Message {message.message_id} deleted from source {message.chat.id}")
         except Exception as e:
             logger.error(f"Forwarding error: {e}")
 
