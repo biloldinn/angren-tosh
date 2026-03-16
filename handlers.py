@@ -44,22 +44,36 @@ def register_handlers():
 
     @bot.message_handler(commands=['admin'], func=lambda m: m.from_user.id == ADMIN_ID)
     def admin_panel(message):
-        markup = types.InlineKeyboardMarkup(row_width=1)
-        markup.add(
-            types.InlineKeyboardButton("📝 Reklama matni", callback_data="admin_ad_text"),
-            types.InlineKeyboardButton("📸 Reklama rasmi", callback_data="admin_ad_photo"),
-            types.InlineKeyboardButton("⏱ Interval", callback_data="admin_ad_time"),
-            types.InlineKeyboardButton("🎯 Reklama guruhi", callback_data="admin_ad_target"),
-            types.InlineKeyboardButton(
-                f"{'🟢 Reklama YOQILGAN' if config.get('is_ad_active') else '🔴 Reklama O`CHIRILGAN'}",
-                callback_data="admin_ad_toggle"
-            ),
-            types.InlineKeyboardButton(
-                f"{'🟢 Forward YOQILGAN' if config.get('is_forwarding_active') else '🔴 Forward O`CHIRILGAN'}",
-                callback_data="admin_fwd_toggle"
-            )
+        status_ad = "🟢 YOQILGAN" if config.get('is_ad_active') else "🔴 O'CHIRILGAN"
+        status_fwd = "🟢 YOQILGAN" if config.get('is_forwarding_active') else "🔴 O'CHIRILGAN"
+        
+        ad_text_preview = (config.get('ad_text')[:40] + "...") if config.get('ad_text') else "Mavjud emas"
+        
+        panel_text = (
+            f"🛠 *Admin Panel*\n\n"
+            f"📢 *Reklama holati:* {status_ad}\n"
+            f"⏱ *Interval:* {config.get('ad_interval_minutes')} min\n"
+            f"📝 *Matn:* _{ad_text_preview}_\n"
+            f"🔄 *Forward:* {status_fwd}"
         )
-        bot.send_message(message.chat.id, "🛠 *Admin Panel*", reply_markup=markup, parse_mode="Markdown")
+
+        markup = types.InlineKeyboardMarkup(row_width=2)
+        markup.add(
+            types.InlineKeyboardButton("📝 Matn", callback_data="admin_ad_text"),
+            types.InlineKeyboardButton("📸 Rasm", callback_data="admin_ad_photo")
+        )
+        markup.add(
+            types.InlineKeyboardButton("⏱ Interval", callback_data="admin_ad_time"),
+            types.InlineKeyboardButton("🎯 Guruh ID", callback_data="admin_ad_target")
+        )
+        markup.add(
+            types.InlineKeyboardButton("🚀 Reklamani hozir yuborish", callback_data="admin_ad_now")
+        )
+        markup.add(
+            types.InlineKeyboardButton(f"{'🔴 Reklamani o`chirish' if config.get('is_ad_active') else '🟢 Reklamani yoqish'}", callback_data="admin_ad_toggle"),
+            types.InlineKeyboardButton(f"{'🔴 Forwardni o`chirish' if config.get('is_forwarding_active') else '🟢 Forwardni yoqish'}", callback_data="admin_fwd_toggle")
+        )
+        bot.send_message(message.chat.id, panel_text, reply_markup=markup, parse_mode="Markdown")
 
     @bot.callback_query_handler(func=lambda c: c.data.startswith('admin_'))
     def admin_callbacks(call):
@@ -76,6 +90,9 @@ def register_handlers():
         elif call.data == "admin_ad_target":
             bot.send_message(cid, "Reklama yuborilishi kerak bo'lgan guruh ID sini yuboring:")
             user_states[cid] = 'setting_ad_target'
+        elif call.data == "admin_ad_now":
+            ads.send_ad()
+            bot.answer_callback_query(call.id, "Reklama guruhga yuborildi!")
         elif call.data == "admin_ad_toggle":
             config['is_ad_active'] = not config['is_ad_active']
             save_config(config)
