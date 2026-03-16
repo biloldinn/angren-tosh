@@ -175,9 +175,16 @@ def register_handlers():
                         f"━━━━━━━━━━━━━━━━━━\n"
                         f"🕒 <i>Vaqt: {message.date}</i>")
                 
-                m = bot.send_message(target, text, parse_mode="HTML")
+                # Buttons for Group
+                mk_group = types.InlineKeyboardMarkup()
+                mk_group.add(
+                    types.InlineKeyboardButton("✅ Qabul qilish", callback_data=f"order_accept_{cid}"),
+                    types.InlineKeyboardButton("❌ Rad etish", callback_data=f"order_reject_{cid}")
+                )
+
+                m = bot.send_message(target, text, parse_mode="HTML", reply_markup=mk_group)
                 bot.send_location(target, state['lat'], state['lon'], reply_to_message_id=m.message_id)
-                bot.send_message(cid, "✅ *Buyurtmangiz qabul qilindi!* Tez orada aloqaga chiqamiz.", parse_mode="Markdown")
+                bot.send_message(cid, "✅ *Buyurtmangiz yuborildi!* Adminlar qabul qilishi bilan xabar beramiz.", parse_mode="Markdown")
             else:
                 bot.send_message(cid, "❌ Xatolik: Guruh sozlanmagan.")
             
