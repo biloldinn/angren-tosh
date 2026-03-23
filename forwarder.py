@@ -33,20 +33,30 @@ def handle_forwarding(message):
 
             footer = f"\n\n👤 <b>Mijoz:</b> {profile_link}"
             
+            # Create inline button for easy profile access
+            mk = types.InlineKeyboardMarkup()
+            if sender and not is_anonymous_bot:
+                if sender.username:
+                    mk.add(types.InlineKeyboardButton("✉️ Mijozga yozish", url=f"https://t.me/{sender.username}"))
+                else:
+                    mk.add(types.InlineKeyboardButton("👤 Profil (Faqat haydovchiga)", url=f"tg://user?id={sender.id}"))
+            elif message.sender_chat and message.sender_chat.username:
+                mk.add(types.InlineKeyboardButton("👤 Profil (Kanal)", url=f"https://t.me/{message.sender_chat.username}"))
+
             # Forward based on content type
             if message.text:
                 new_text = html.escape(message.text) + footer
-                bot.send_message(target, new_text, parse_mode="HTML")
+                bot.send_message(target, new_text, parse_mode="HTML", reply_markup=mk if mk.keyboard else None)
             elif message.photo:
                 caption = html.escape(message.caption or "") + footer
-                bot.send_photo(target, message.photo[-1].file_id, caption=caption, parse_mode="HTML")
+                bot.send_photo(target, message.photo[-1].file_id, caption=caption, parse_mode="HTML", reply_markup=mk if mk.keyboard else None)
             elif message.video:
                 caption = html.escape(message.caption or "") + footer
-                bot.send_video(target, message.video.file_id, caption=caption, parse_mode="HTML")
+                bot.send_video(target, message.video.file_id, caption=caption, parse_mode="HTML", reply_markup=mk if mk.keyboard else None)
             else:
-                # For other types, just copy but add a notification message
-                bot.copy_message(target, message.chat.id, message.message_id)
-                bot.send_message(target, f"☝️ Yuqodagi xabar egasi: {profile_link}", parse_mode="HTML")
+                # For other types
+                copied = bot.copy_message(target, message.chat.id, message.message_id, reply_markup=mk if mk.keyboard else None)
+                bot.send_message(target, f"☝️ Yuqoridagi xabar egasi: {profile_link}", parse_mode="HTML", reply_to_message_id=copied.message_id)
 
             logger.info(f"Message {message.message_id} forwarded with profile link to {target}")
             
