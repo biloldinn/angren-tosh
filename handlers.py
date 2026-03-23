@@ -92,7 +92,7 @@ def register_handlers():
             bot.send_message(cid, "Reklama yuborilishi kerak bo'lgan guruh ID sini yuboring:")
             user_states[cid] = 'setting_ad_target'
         elif call.data == "admin_ad_now":
-            ads.send_ad()
+            ads.send_ad(force=True)
             bot.answer_callback_query(call.id, "Reklama guruhga yuborildi!")
         elif call.data == "admin_ad_toggle":
             config['is_ad_active'] = not config['is_ad_active']
