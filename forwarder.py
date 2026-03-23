@@ -1,5 +1,6 @@
 import asyncio
 import time
+from telebot import types
 from bot_instance import bot
 from config import config
 from logger import logger
