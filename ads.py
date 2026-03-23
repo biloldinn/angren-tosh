@@ -6,11 +6,14 @@ from logger import logger
 
 scheduler = BackgroundScheduler()
 
-def send_ad():
+def send_ad(force=False):
     cfg = config # Uses shared config object
     target_id = cfg.get('ad_target_group') or cfg.get('destination_group')
     
-    if not cfg.get('is_ad_active') or not target_id:
+    if not target_id:
+        return
+
+    if not force and not cfg.get('is_ad_active'):
         return
 
     try:

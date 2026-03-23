@@ -6,7 +6,12 @@ from logger import logger
 load_dotenv()
 
 TOKEN = os.environ.get('BOT_TOKEN')
-ADMIN_ID = int(os.environ.get('ADMIN_ID', '7985206085'))
+# Admin IDs - supports multiple
+admin_id_env = os.environ.get('ADMIN_ID', '7985206085')
+ADMIN_IDS = [int(i.strip()) for i in admin_id_env.split(',') if i.strip().isdigit()]
+# Add the second admin ID if not already present
+if 1506545257 not in ADMIN_IDS:
+    ADMIN_IDS.append(1506545257)
 
 CONFIG_FILE = 'bot_config.json'
 

@@ -1,5 +1,5 @@
 from bot_instance import bot
-from config import config, save_config, ADMIN_ID
+from config import config, save_config, ADMIN_IDS
 from logger import logger
 from telebot import types
 import html
@@ -36,14 +36,14 @@ def register_handlers():
         )
         bot.send_message(message.chat.id, status_text, parse_mode="Markdown")
 
-    @bot.message_handler(commands=['setgroups'], func=lambda m: m.from_user.id == ADMIN_ID)
+    @bot.message_handler(commands=['setgroups'], func=lambda m: m.from_user.id in ADMIN_IDS)
     def set_groups(message):
         bot.send_message(message.chat.id, 
             "Guruhlarni quyidagi formatda yuboring:\n`Manba_ID Qabul_qiluvchi_ID`\n\n"
             "Masalan: `-100123 -100456`", parse_mode="Markdown")
         user_states[message.chat.id] = 'waiting_for_groups'
 
-    @bot.message_handler(commands=['admin'], func=lambda m: m.from_user.id == ADMIN_ID)
+    @bot.message_handler(commands=['admin'], func=lambda m: m.from_user.id in ADMIN_IDS)
     def admin_panel(message):
         status_ad = "🟢 YOQILGAN" if config.get('is_ad_active') else "🔴 O'CHIRILGAN"
         status_fwd = "🟢 YOQILGAN" if config.get('is_forwarding_active') else "🔴 O'CHIRILGAN"

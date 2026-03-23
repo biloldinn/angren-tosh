@@ -15,17 +15,23 @@ def handle_forwarding(message):
 
     if str(message.chat.id) == str(source) or (message.chat.username and message.chat.username == str(source).replace('@', '')):
         try:
-            user = message.from_user
-            if not user:
-                profile_link = "Noma'lum"
-            else:
-                name = html.escape(user.first_name + (f" {user.last_name}" if user.last_name else ""))
-                if user.username:
-                    profile_link = f"<a href='https://t.me/{user.username}'>{name} (@{user.username})</a>"
+            sender = message.from_user
+            is_anonymous_bot = sender and sender.id in [1087968824, 777000, 136817688]
+            
+            if sender and not is_anonymous_bot:
+                name = html.escape(sender.first_name + (f" {sender.last_name}" if sender.last_name else ""))
+                if sender.username:
+                    profile_link = f"<a href='https://t.me/{sender.username}'>{name} (@{sender.username})</a>"
                 else:
-                    profile_link = f"<a href='tg://user?id={user.id}'>{name} (Profil)</a>"
+                    profile_link = f"<a href='tg://user?id={sender.id}'>{name} (Profil)</a>"
+            elif message.sender_chat:
+                chat = message.sender_chat
+                name = html.escape(chat.title or "Mijoz")
+                profile_link = f"<a href='https://t.me/{chat.username}'>{name}</a>" if chat.username else f"<b>{name}</b>"
+            else:
+                profile_link = "<i>Yashirin profil</i>"
 
-            footer = f"\n\n👉 <b>Mijoz:</b> {profile_link}"
+            footer = f"\n\n👤 <b>Mijoz:</b> {profile_link}"
             
             # Forward based on content type
             if message.text:
